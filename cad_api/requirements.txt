@@ -1,0 +1,37 @@
+ezdxf==1.4.4
+# ezdxf.addons.drawing imports PIL unconditionally (frontend.py:21) even for
+# the pure-SVG path, so Pillow is a hard requirement, not an image-export extra.
+pillow==11.1.0
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pymongo==4.10.1
+pydantic==2.10.4
+pydantic-settings==2.7.0
+python-json-logger==3.2.1
+
+# Config guna lahan dibaca dari YAML. Sampai hari ini ia jalan hanya karena
+# uvicorn[standard] menariknya masuk secara transitif -- sebuah kebergantungan
+# yang tidak pernah kita minta bisa hilang di rilis berikutnya, dan yang hilang
+# bersamanya adalah kemampuan membaca guna lahan sama sekali.
+pyyaml==6.0.3
+
+# Membuka kontainer OLE yang tertanam di dalam DXF. Murni Python, ~40 KB.
+# Tanpa ini, lembar catatan dan kunci guna lahan yang di-paste ke dalam gambar
+# tetap tidak terbaca -- dan sebuah kontainer yang tidak dibuka terlihat persis
+# seperti berkas yang memang tidak memuat apa-apa.
+olefile==0.47
+
+# Indeks sel heksagonal H3. Dipasang persis pada versi yang dipakai untuk
+# menghitung konstanta golden di docs/GEO-H3-PLAN.md: nomor sel adalah fungsi
+# dari implementasinya, jadi versi yang berbeda adalah jawaban yang berbeda,
+# dan sebuah test yang membandingkan string sel akan berbohong tentang apa
+# yang berubah. Nama fungsi Python-nya snake_case (latlng_to_cell,
+# polygon_to_cells, grid_disk, cell_to_parent).
+h3==4.5.0
+
+# Multipart form parsing, which FastAPI needs before it can accept an
+# uploaded file at all: without it a route declaring UploadFile raises at
+# import time rather than at request time. Pinned like everything else here
+# because an intake path that changes behaviour on a silent minor bump is
+# exactly the kind of surprise this file exists to prevent.
+python-multipart==0.0.20

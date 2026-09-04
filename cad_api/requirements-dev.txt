@@ -1,0 +1,12 @@
+pytest==8.3.4
+# Verification only, never shipped in the runtime image: used by
+# app/contact_sheet.py to rasterise the SVGs so a human can look at them.
+# The blob bug survived every structural check precisely because nobody did.
+cairosvg==2.7.1
+
+# Used by `scripts/mutate.sh`: a mutant can hang -- removing a guard can
+# produce an endless loop -- and a harness that hangs reports nothing at all.
+# Without this package `--timeout` is not merely ignored; pytest rejects the
+# argument and exits non-zero, so EVERY mutant reads as CAUGHT. That is a
+# false green light.
+pytest-timeout==2.3.1

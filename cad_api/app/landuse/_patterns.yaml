@@ -1,0 +1,163 @@
+# Land use patterns that apply to ANY drawing (G4).
+#
+# Two blocks, two different jobs, and mixing them up is the easiest mistake to
+# make in this file:
+#
+#   `patterns`    decides WHICH land use a layer falls into.
+#   `vocabulary`  decides whether a string actually read in the file
+#                 STATES that land use (`evidence.speaks_for`).
+#
+# A layer can match a pattern and still state nothing — and that is a valid
+# state: it comes out as `inferred`, not as `stated`. Conversely, a layer that
+# matches no pattern at all can still be `stated` through a per-drawing
+# override, because the grade is computed from its sources, not from the config
+# layer that decided it.
+#
+# A pattern hit is ALWAYS `verified: false` (G4). That is not typed here and
+# cannot be typed anywhere: `verified` is derived from the config layer in
+# `evidence.Provenance`. All this file holds is the mapping.
+#
+# Ordering rule: the first match wins. Specific patterns are written above
+# general ones. Matching is `re.search`, not `re.fullmatch`, so a trailing `.*`
+# is unnecessary.
+version: 1
+
+patterns:
+  # --- hospitality, ABOVE residential --------------------------------------
+  # `serviced apartment` contains `apartment`. What decides is the ORDER, not
+  # how specific the pattern is, so this line must sit above the residential
+  # block.
+  - match: "(?i)\\b(hotel|resort|serviced\\s*apartment)\\b"
+    use: hospitality
+
+  # --- residential ----------------------------------------------------------
+  # This block was once MISSING entirely, and that was the biggest hole in this
+  # file: the `residential` vocabulary was already complete below while not one
+  # pattern could produce it. A drawing with a layer named `RESIDENTIAL` or
+  # `Villa Type A` therefore came out unclassified -- on every drawing without a
+  # hand-written override, which is all of them but one.
+  #
+  # What is NOT here, and must not be: typology codes such as `VL2`, `DP4`,
+  # `C10`. Their meaning is not stated in any file, and a pattern that guessed
+  # them would publish a classification that looks exactly as confident as a
+  # correct one. Codes are mapped through per-drawing tagging, where a human
+  # signs for them.
+  - match: "(?i)\\b(residential|housing|dwelling(s)?|villa(s)?|townhouse(s)?|apartment(s)?|duplex(es)?|zero\\s*lot)\\b"
+    use: residential
+
+  # --- industrial -----------------------------------------------------------
+  - match: "(?i)\\b(industrial|warehouse(s)?|factory|factories|workshop(s)?|logistics|depot)\\b"
+    use: industrial
+
+  # --- sports ---------------------------------------------------------------
+  # `court` on its own is not used: `courtyard` and street names contain it.
+  - match: "(?i)\\b(stadium|gymnasium|sports?\\s*(field|court|cent(er|re)|complex|club)|swimming\\s*pool)\\b"
+    use: sports
+
+  # --- cemetery -------------------------------------------------------------
+  - match: "(?i)\\b(cemetery|cemeteries|graveyard|burial\\s*ground)\\b"
+    use: cemetery
+
+  # --- education ----------------------------------------------------------
+  - match: "(?i)\\bprimary\\s*school\\b"
+    use: education
+    subtype: school_primary
+  - match: "(?i)\\bsecondary\\s*school\\b"
+    use: education
+    subtype: school_secondary
+  - match: "(?i)\\bintermediate\\s*school\\b"
+    use: education
+    subtype: school_intermediate
+  - match: "(?i)\\b(kindergarten|nursery|early\\s*education)\\b"
+    use: education
+    subtype: early_education
+  - match: "(?i)\\b(school|college|university|education(al)?)\\b"
+    use: education
+
+  # --- religious ----------------------------------------------------------
+  - match: "(?i)\\b(mosque|masjid|musalla|prayer\\s*hall)\\b"
+    use: religious
+
+  # --- open space ---------------------------------------------------------
+  # `park` is tested with word boundaries so that `CAR PARKING AREA` does not
+  # slip through to here; that is also why the parking line sits above this one.
+  - match: "(?i)\\b(car\\s*park(ing)?|parking)\\b"
+    use: parking
+  - match: "(?i)\\b(park|open\\s*space(s)?|green\\s*space|playground|plaza|promenade)\\b"
+    use: open_space
+
+  # --- commercial ---------------------------------------------------------
+  - match: "(?i)\\b(commercial|retail|mall|souq|shopping)\\b"
+    use: commercial
+
+  # --- community facilities -----------------------------------------------
+  - match: "(?i)\\b(clinic|hospital|health\\s*care|healthcare|community\\s*cent(er|re)|civic|library|majlis|municipal(ity)?|police\\s*station|fire\\s*station|civil\\s*defen[cs]e|post\\s*office)\\b"
+    use: community
+
+  # --- utilities ----------------------------------------------------------
+  - match: "(?i)\\b(sub\\s*station|substation|telecom|reservoir|pump(ing)?\\s*station|lifting\\s*station|sewage|water\\s*tank|stp)\\b"
+    use: utility
+
+  # THERE IS DELIBERATELY NO `road` PATTERN. The reference drawing has 60
+  # Civil3D template layers containing that word — `C-ROAD-PROF-GRID-MINR`,
+  # `C-ROAD-SECT-TTLB` — and every one of them is sheet layout, not land use. A
+  # pattern that swept all sixty into `road` would publish sixty wrong
+  # classifications on any drawing that uses that template. Roads are mapped
+  # through per-drawing overrides until there is a pattern that can tell the two
+  # apart.
+
+# The tokens that count as STATING a land use. Read through
+# `evidence.load_vocabulary`, which drops Latin tokens under four letters and
+# code-shaped tokens (`vl2`) — without that fence, one line here could raise
+# 2,380 plots from `inferred` to `stated` without one line of Python changing.
+# What is dropped is reported; it does not take the service down (D-067).
+#
+# Non-Latin tokens are tested with containment, not word boundaries: word
+# boundaries cannot be relied on in Arabic. The Arabic tokens below are words
+# actually read in the reference drawing through the SHX map, not translations
+# that were expected to be there.
+vocabulary:
+  residential:
+    tokens: ["residential", "housing", "dwelling", "villa", "villas",
+             "townhouse", "apartment", "سكني", "سكنية", "فيلا"]
+  education:
+    tokens: ["school", "schools", "education", "educational", "kindergarten",
+             "nursery", "مدرسة", "تعليمي", "تعليمية", "روضة"]
+  religious:
+    tokens: ["mosque", "masjid", "musalla", "prayer", "مسجد", "جامع", "مصلى"]
+  commercial:
+    tokens: ["commercial", "retail", "mall", "souq", "shopping", "showroom",
+             "تجاري", "تجارية"]
+  community:
+    tokens: ["community", "clinic", "hospital", "health", "healthcare",
+             "civic", "library", "administration", "majlis"]
+  utility:
+    tokens: ["utility", "utilities", "substation", "sub station", "reservoir",
+             "telecom", "sewage", "pumping", "lifting station", "treatment",
+             "water tank"]
+  open_space:
+    tokens: ["park", "parks", "open space", "open spaces", "green space",
+             "garden", "playground", "plaza", "promenade", "حديقة", "حدائق"]
+  road:
+    tokens: ["road", "roads", "street", "carriageway", "highway", "junction",
+             "roundabout", "شارع", "طريق"]
+  parking:
+    tokens: ["parking", "car park", "carpark", "مواقف"]
+  industrial:
+    tokens: ["industrial", "warehouse", "factory", "workshop", "logistics",
+             "depot", "صناعي", "مستودع"]
+  hospitality:
+    tokens: ["hotel", "resort", "serviced apartment", "فندق"]
+  sports:
+    tokens: ["sports", "sport", "stadium", "gymnasium", "swimming pool",
+             "ملعب", "رياضي"]
+  cemetery:
+    tokens: ["cemetery", "graveyard", "burial ground", "مقبرة"]
+  structure:
+    tokens: ["boundary", "block boundary", "plot boundary", "setback"]
+  annotation:
+    tokens: ["label", "annotation", "legend", "callout"]
+  # Deliberately empty, and that is a VALID state: an `unknown` claim has no
+  # word that can be searched for to prove the file states it.
+  unknown:
+    tokens: []

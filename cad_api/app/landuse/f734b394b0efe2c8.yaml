@@ -1,0 +1,66 @@
+# Land use — SEDRA 2A NHD-G 2.dxf
+#
+# Per-drawing override, same shape as `596212db022a3397.yaml` (Janadriyah).
+# Read that file's header for how `use`/`subtype`/`role` differ from
+# `sources`; nothing about the rules changes here.
+#
+# WHY THIS FILE IS ALMOST EMPTY, and why that is the honest state:
+#
+# Sedra carries 705 layers and NOT ONE of them matches the RCDC poster's
+# convention (`LANDUSE-*`, `ROAD-*`, `PARK-*`, `WALK-*`) — measured, 0 of 705.
+# The names that are there are plant species (`Acacia Tortilis`), paving
+# materials (`PAR_LA_MATS-TYPE 13B`), and bound-xref scars
+# (`XR_BUILDING FOOTPRINT-SED-2A$0$L-APOASP$0$...`). Classifying them is a
+# human decision that has not been taken, and inventing it here would be the
+# most damaging kind of wrong: a classification that does not look wrong.
+#
+# So this file states the ONE thing that is measured and defensible — where
+# the drawing sits on the earth — and leaves `layers` empty. The draft
+# classifier writes its proposal to the review directory at ingest, and a
+# human promotes what survives review. That is the existing loop, not a new
+# one.
+version: 1
+drawing_id: "f734b394b0efe2c8"
+drawing_name: "SEDRA 2A NHD-G 2"
+default_use: unknown
+
+# The drawing's coordinate system. NOT stated by the file — measured 2 Sep
+# 2026 with `ezdxf.recover.readfile`: `modelspace.get_geodata()` returns None
+# and there is no GEODATA object. So this whole block is inference, and
+# `declared_in_file: false` is what makes that travel with every response
+# carrying a lat/long.
+crs:
+  epsg: 32638
+  name: "WGS 84 / UTM zone 38N"
+  declared_in_file: false
+  sources:
+    - origin: geometry
+      locator: "modelspace extents"
+      detail: >-
+        the header extents (666,597.600 / 2,743,400.230) - (684,006.314 /
+        2,755,046.983) are UTM-shaped, and $INSUNITS is 6 (metres). Inverted as
+        zone 38N their centre lands at 24.84792 N / 46.73491 E, north-west
+        Riyadh, which is where Sedra is; inverted as zone 37N the same numbers
+        land at about 40.7 E, in open desert several hundred kilometres away
+    - origin: absence
+      locator: "the $GEODATA header and modelspace.get_geodata()"
+      detail: >-
+        the file does not state its coordinate system at all; there is no
+        GEODATA object, so the zone above is a conclusion drawn from where the
+        coordinates land, not a statement by the file
+  unknown: "the UTM zone, the datum and the projection are not stated in any file"
+  how_to_verify: >-
+    ask the drawing's author to confirm the zone, or supply any single surveyed
+    point in the drawing with its known latitude and longitude
+  note: >-
+    Do not use it for anything binding before it is confirmed. It is the same
+    evidence pattern as Janadriyah — inferred from where the numbers land, with
+    the alternative zone shown to be absurd — and it carries the same caveat.
+    The inference is deliberately NOT self-upgrading: nothing in the pipeline
+    may promote it to `declared_in_file: true`, because only the author can do
+    that.
+
+# Nothing is classified yet, and that is deliberate: see the header. The draft
+# the classifier proposes at ingest is written to the review directory, never
+# here.
+layers: {}

@@ -1,0 +1,35 @@
+{
+  "_README": [
+    "The scope contract, in one place, because two copies of it drifted.",
+    "",
+    "The browser builds this preamble around every question, and the headless",
+    "evaluation harness rebuilds it so a headless answer is comparable with one",
+    "from the UI. They were kept in step by hand and did not stay in step: the",
+    "harness copy lost the sentence D-073 exists for -- 'answering with Model",
+    "figures is answering a different question, however reasonably it is",
+    "explained' -- along with the concrete steers. Every headless result",
+    "claiming D-073 was fixed had been measured against a weaker prompt than the",
+    "browser ships.",
+    "",
+    "So the text lives here and both read it: web/app/api/agent/stream/route.ts",
+    "imports this file, scripts/eval_drafter.py loads it from disk. Twins by",
+    "construction rather than by discipline. scripts/prove_twin.py renders both",
+    "and diffs them.",
+    "",
+    "Placeholders are {braces}. Anything else is literal."
+  ],
+
+  "drawing": "[drawing: {drawing_id}{drawing_name}. This is the only drawing in scope. Never answer about another.]",
+  "drawing_name_suffix": " — \"{drawing_name}\"",
+
+  "layout_plain": "[layout on screen: \"{layout}\"]",
+  "layout_projected": "[layout on screen: \"{layout}\" — a sheet that draws another space through a viewport. Two spaces are in play and the question decides which one you want. The drawing content the user sees through the viewport is STORED under layout \"{scope}\": for anything about that content — roads, plots, quantities, what is on a layer — pass layout=\"{scope}\". The sheet ITSELF is a real layout that holds its own objects: the border, title block, notes, legend, north arrow, revision table. For those, pass layout=\"{layout}\". Asked what is drawn ON the sheet as opposed to shown through it, answering with \"{scope}\" figures is answering a different question, however reasonably it is explained.]",
+
+  "default_scope": "[default scope for every count: layout=\"{scope}\", unless the question is about the sheet's own furniture, in which case it is layout=\"{layout}\". Counting the whole file instead silently answers a different question — on this drawing the same question has four correct answers depending on scope, differing by a factor of eight. Whichever you use, name it in the answer.]",
+
+  "no_selection": "[no selection is active: the question is about the layout on screen. Say which scope your figures come from.]",
+
+  "label_selection": "[a question about area, size, dimensions or type, asked while a TEXT or MTEXT label is selected, is almost always about the PARCEL the label sits inside and not about the label. Answer about the parcel, quote its handle, and say plainly that what was clicked is its label. Answering \"this is a text entity on layer X\" is correct and useless: that happened on 23 August 2026 and is the reason this rule exists.]",
+
+  "evidence": "[answer only from what the tools return, and quote handles so every claim can be clicked and checked in the viewer.]"
+}

@@ -1,0 +1,7 @@
+google-adk==2.7.0
+# ADK 2.7.0 imports `mcp.shared.session`, which the MCP SDK moved in 2.0.0.
+# Without this pin, pip resolves mcp 2.x and every MCP import inside ADK fails
+# silently: google.adk.tools.mcp_tool swallows the ImportError in a try/except,
+# so McpToolset simply does not exist and the agent fails to load with a
+# misleading "cannot import name" rather than "wrong mcp version".
+mcp==1.29.0

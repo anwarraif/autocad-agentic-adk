@@ -1,0 +1,643 @@
+# Land use — JANADRIYAH DMP - 20240506.dxf
+#
+# Per-drawing override. It beats `_patterns.yaml`; whatever is not named here
+# falls through to the global patterns, then to `unclassified`.
+#
+# HOW TO READ IT, and the one thing to hold on to while editing it:
+#
+#   `use` + `subtype` + `role`  = THE CLASSIFICATION. This is a human decision.
+#   `sources`                   = HOW that classification is known.
+#   `note`                      = a remark. NOT a source.
+#
+# There is no `verified:` and no free-text `source:` in this file, and adding
+# either will be refused by the loader. Together they are a mechanism for
+# raising the evidence grade in YAML form: `{use: open_space, verified: true,
+# source: "layer name"}` is one source, one corpus, marked verified by hand.
+# `verified` is now derived from the config layer (`drawing_override` true,
+# `global_pattern` always false) and `grade` is computed from `sources`. D-082.
+#
+# `observed` is the string ACTUALLY read in the file, and that is what
+# `evidence.speaks_for()` tests — not the prose in `detail`. Filling `observed`
+# with the same sentence as `detail` makes the literal test meaningless. For
+# Arabic SHX text, `observed` is its reading and `observed_raw` is the bytes as
+# they are in the file.
+version: 1
+drawing_id: "596212db022a3397"
+drawing_name: "JANADRIYAH DMP - 20240506"
+default_use: unknown
+
+# The drawing's coordinate system. NOT stated by the file — checked 23 August
+# 2026: there is no GEODATA object, `$GEODATA` is absent from the header, and
+# `modelspace.get_geodata()` returns None. So this whole block is inference,
+# and it is `declared_in_file: false` that makes that travel with every
+# response carrying a lat/long.
+crs:
+  epsg: 32638
+  name: "WGS 84 / UTM zone 38N"
+  declared_in_file: false
+  sources:
+    - origin: geometry
+      locator: "modelspace extents"
+      detail: >-
+        the extents (687,513.9 / 2,747,693.5) - (703,120.6 / 2,757,082.8) are
+        UTM-shaped. Inverted as zone 38N they land at 24.831-24.917 N /
+        46.856-47.011 E, which is Janadriyah north-east of Riyadh; inverted as
+        zone 37N they land at 40.86 E, in the Red Sea
+    - origin: absence
+      locator: "the $GEODATA header and modelspace.get_geodata()"
+      detail: >-
+        the file does not state its coordinate system at all; there is no
+        GEODATA object, so the zone above is a conclusion drawn from where it
+        sits, not a statement by the file
+  unknown: "the UTM zone, the datum, and the projection are not stated in any file"
+  how_to_verify: "confirm with the drawing's author; it is on the same list as the typology key and the SHX font files, which are also still missing"
+  note: >-
+    Do not use it for anything binding before it is confirmed. A cross-check
+    anyone can verify: the `Jumaa Mosque` parcel, handle 205D0EB, lands at
+    24.85142 / 46.89358 and `Primary School`, handle 205D153, at
+    24.85975 / 46.89974
+
+# A fact used by more than one entry is written ONCE here, so that two copies
+# of it cannot differ after one of them is edited. Keys prefixed with an
+# underscore are skipped by the loader.
+_anchors:
+  plot_tiling: &src_plot_tiling
+    origin: topology
+    locator: "BlockBoundary"
+    detail: >-
+      2,380 plots on 13 typology-code layers fill 197 BlockBoundary polygons;
+      Σ plot area 712,977.389756 m2 against Σ BlockBoundary area
+      712,977.351390 m2 — a difference of 0.038366 m2 over 197 polygons
+
+  plot_module: &src_plot_module
+    origin: geometry
+    locator: "13 typology-coded layers, Model"
+    detail: >-
+      2,312 of the 2,380 plots have at least one side between 24 and 26 m; the
+      same module depth repeats across all thirteen layers
+
+  no_word_for_it: &src_no_word_for_it
+    origin: absence
+    locator: "the whole file"
+    detail: >-
+      zero of the 43,109 TEXT/MTEXT contain 'residential', 'villa', 'house', or
+      any typology code; 18 non-residential land uses have an explicitly named
+      layer, so the rest is concluded by elimination
+
+  edu_label: &src_edu_label
+    origin: entity_text
+    observed: "مرفق تعليمي"
+    observed_raw: "lvtR jugdlD"
+    locator: "T4, Model"
+    layout: "Model"
+    detail: >-
+      8 TEXT on layer T4 in Model read 'مرفق تعليمي' (educational facility).
+      That count equals the 8 education parcels that have a SchoolHatch; the
+      one-to-one link to a parcel has not been tested point-in-polygon
+      (UPLIFT-03)
+    reading:
+      verbatim: false
+      method: "shx-map:xarb.shx"
+      corpus_verified: true
+
+layers:
+  # --- education ----------------------------------------------------------
+  #
+  # Two different corpora -> corroborated. The layer name and the label inside
+  # the drawing were written on different occasions by different tools, so the
+  # two cannot be wrong for the same reason.
+  "Primary School":
+    use: education
+    subtype: school_primary
+    sources:
+      - {origin: layer_name, observed: "Primary School", locator: "Primary School",
+         detail: "layer name, in English"}
+      - *src_edu_label
+
+  "Secondary School":
+    use: education
+    subtype: school_secondary
+    sources:
+      - {origin: layer_name, observed: "Secondary School", locator: "Secondary School",
+         detail: "layer name"}
+      - *src_edu_label
+
+  # One corpus only -> stated, not corroborated. Adding a second layer name
+  # would not raise it; only a different corpus raises it.
+  "Intermediate School":
+    use: education
+    subtype: school_intermediate
+    sources:
+      - {origin: layer_name, observed: "Intermediate School",
+         locator: "Intermediate School", detail: "layer name"}
+      - *src_edu_label
+
+  "Private School":
+    use: education
+    subtype: school_private
+    sources:
+      - {origin: layer_name, observed: "Private School", locator: "Private School",
+         detail: "layer name, in English"}
+    note: >-
+      the only education parcel with no SchoolHatch AND no T4 label. That is
+      why it is `stated`, not `corroborated`, while the other five education
+      layers are corroborated — that difference is real and not an oversight
+
+  "Early Education ELC 300":
+    use: education
+    subtype: early_education
+    sources:
+      - {origin: layer_name, observed: "Early Education ELC 300",
+         locator: "Early Education ELC 300", detail: "layer name"}
+      - *src_edu_label
+    unknown: "the numbers 300 and 600 are not explained in any file"
+    how_to_verify: "ask Roshn for the facility typology key; or the raster legend table.JPG that does not resolve"
+
+  "Early Education ELC 600":
+    use: education
+    subtype: early_education
+    sources:
+      - {origin: layer_name, observed: "Early Education ELC 600",
+         locator: "Early Education ELC 600", detail: "layer name"}
+      - *src_edu_label
+    unknown: "the numbers 300 and 600 are not explained in any file"
+    how_to_verify: "ask Roshn for the facility typology key; or the raster legend table.JPG that does not resolve"
+
+  "SchoolHatch":
+    use: education
+    subtype: overlay_hatch
+    role: overlay          # not a parcel — never count it as a plot
+    sources:
+      - {origin: layer_name, observed: "SchoolHatch", locator: "SchoolHatch",
+         detail: "layer name"}
+    note: >-
+      8 HATCHes; 6 over school plots, 2 over ELC plots, Private School has
+      none. A HATCH carries no area in this store, so its area is withheld and
+      never reported as 0. Using the hatches as a school counter is wrong in
+      both directions: 8 hatches against 9 education parcels
+
+  # --- religious ----------------------------------------------------------
+  "Jumaa Mosque":
+    use: religious
+    subtype: mosque_jumaa
+    sources:
+      - {origin: layer_name, observed: "Jumaa Mosque", locator: "Jumaa Mosque",
+         detail: "layer name"}
+    note: >-
+      there is no 'مسجد جامع' text in this file. All 38 distinct T4 strings
+      have been read and only 'مسجد محلي' appears, 5 times. This layer is
+      therefore `stated` from its layer name alone
+
+  "Local Mosque":
+    use: religious
+    subtype: mosque_local
+    sources:
+      - {origin: layer_name, observed: "Local Mosque", locator: "Local Mosque",
+         detail: "layer name"}
+      - origin: entity_text
+        observed: "مسجد محلي"
+        observed_raw: "ls{] lpgD"
+        locator: "T4, Model"
+        layout: "Model"
+        detail: >-
+          5 TEXT on layer T4 in Model read 'مسجد محلي' (local mosque); that
+          count equals the 5 Local Mosque parcels
+        reading:
+          verbatim: false
+          method: "shx-map:xarb.shx"
+          corpus_verified: true
+    note: >-
+      2 of the 5 parcels have ring_status `bulge`: their vertex chain is the
+      chord, not the real boundary, so their area is WITHHELD, not zero
+
+  # --- residential --------------------------------------------------------
+  #
+  # Not one of these thirteen layers is stated by the file as residential:
+  # there is no word 'residential', 'villa', or 'house' in the 43,109
+  # TEXT/MTEXT. That is why they are all `inferred`, and they stay `inferred`
+  # however many bases are added — the plot module and the BlockBoundary tiling
+  # are one act of drawing read two ways, so both fall into the `coordinates`
+  # corpus, which never states.
+  #
+  # The `unknown:` on every row is the most important part here: the meaning of
+  # the VL/DP/LP/TH/C codes is not known, and guessing it ("VL = villa") is the
+  # most damaging mistake there is, because it does not look wrong.
+  "VL2":
+    use: residential
+    subtype: "typology:VL2"
+    sources:
+      - {origin: layer_name, observed: "VL2", locator: "VL2", detail: "layer name"}
+      - {origin: geometry, locator: "VL2",
+         detail: "plot module 12 x 25 m (median over 100 rectangular plots of 133)"}
+      - *src_plot_tiling
+      - *src_no_word_for_it
+    unknown: "what the VL code means is not stated in any file"
+    how_to_verify: "ask Roshn for the typology key, or the raster legend table.JPG that does not resolve"
+
+  "VL3":
+    use: residential
+    subtype: "typology:VL3"
+    sources:
+      - {origin: layer_name, observed: "VL3", locator: "VL3", detail: "layer name"}
+      - {origin: geometry, locator: "VL3",
+         detail: "plot module 12 x 25 m (median over 270 rectangular plots of 512)"}
+      - *src_plot_tiling
+      - *src_no_word_for_it
+    unknown: "what the VL code means is not stated in any file"
+    how_to_verify: "ask Roshn for the typology key, or the raster legend table.JPG that does not resolve"
+
+  "VL4":
+    use: residential
+    subtype: "typology:VL4"
+    sources:
+      - {origin: layer_name, observed: "VL4", locator: "VL4", detail: "layer name"}
+      - {origin: geometry, locator: "VL4",
+         detail: "plot module 12 x 25 m (median over 115 rectangular plots of 195)"}
+      - *src_plot_tiling
+      - *src_no_word_for_it
+    unknown: "what the VL code means is not stated in any file"
+    how_to_verify: "ask Roshn for the typology key, or the raster legend table.JPG that does not resolve"
+
+  "VL4 SPECIAL":
+    use: residential
+    subtype: "typology:VL4 SPECIAL"
+    sources:
+      - {origin: layer_name, observed: "VL4 SPECIAL", locator: "VL4 SPECIAL",
+         detail: "layer name"}
+      - {origin: geometry, locator: "VL4 SPECIAL",
+         detail: "plot module 12 x 25 m (median over 96 rectangular plots of 140)"}
+      - *src_plot_tiling
+      - *src_no_word_for_it
+    unknown: "what the VL code means, and what makes this variant SPECIAL, is not stated"
+    how_to_verify: "ask Roshn for the typology key, or the raster legend table.JPG that does not resolve"
+
+  "DP4":
+    use: residential
+    subtype: "typology:DP4"
+    sources:
+      - {origin: layer_name, observed: "DP4", locator: "DP4", detail: "layer name"}
+      - {origin: geometry, locator: "DP4",
+         detail: "plot module 10 x 25 m (median over 173 rectangular plots of 236)"}
+      - *src_plot_tiling
+      - *src_no_word_for_it
+    unknown: "what the DP code means is not stated in any file"
+    how_to_verify: "ask Roshn for the typology key, or the raster legend table.JPG that does not resolve"
+
+  "DP4 ZEROLOT":
+    use: residential
+    subtype: "typology:DP4 ZEROLOT"
+    sources:
+      - {origin: layer_name, observed: "DP4 ZEROLOT", locator: "DP4 ZEROLOT",
+         detail: "layer name; the term 'zero lot line' is used only in residential planning"}
+      - {origin: geometry, locator: "DP4 ZEROLOT",
+         detail: "plot module 10 x 25 m (median over 73 rectangular plots of 139)"}
+      - *src_plot_tiling
+      - *src_no_word_for_it
+    unknown: "what the DP code means is not stated in any file"
+    how_to_verify: "ask Roshn for the typology key, or the raster legend table.JPG that does not resolve"
+
+  "LP1":
+    use: residential
+    subtype: "typology:LP1"
+    sources:
+      - {origin: layer_name, observed: "LP1", locator: "LP1", detail: "layer name"}
+      - {origin: geometry, locator: "LP1",
+         detail: "plot module 16 x 25 m (median over 35 rectangular plots of 88)"}
+      - *src_plot_tiling
+      - *src_no_word_for_it
+    unknown: "what the LP code means is not stated in any file"
+    how_to_verify: "ask Roshn for the typology key, or the raster legend table.JPG that does not resolve"
+
+  "LP2":
+    use: residential
+    subtype: "typology:LP2"
+    sources:
+      - {origin: layer_name, observed: "LP2", locator: "LP2", detail: "layer name"}
+      - {origin: geometry, locator: "LP2",
+         detail: "plot module 12 x 25 m (median over 89 rectangular plots of 169)"}
+      - *src_plot_tiling
+      - *src_no_word_for_it
+    unknown: "what the LP code means is not stated in any file"
+    how_to_verify: "ask Roshn for the typology key, or the raster legend table.JPG that does not resolve"
+
+  "LP3":
+    use: residential
+    subtype: "typology:LP3"
+    sources:
+      - {origin: layer_name, observed: "LP3", locator: "LP3", detail: "layer name"}
+      - {origin: geometry, locator: "LP3",
+         detail: "plot module 10 x 25 m (median over 181 rectangular plots of 319)"}
+      - *src_plot_tiling
+      - *src_no_word_for_it
+    unknown: "what the LP code means is not stated in any file"
+    how_to_verify: "ask Roshn for the typology key, or the raster legend table.JPG that does not resolve"
+
+  "LP4":
+    use: residential
+    subtype: "typology:LP4"
+    sources:
+      - {origin: layer_name, observed: "LP4", locator: "LP4", detail: "layer name"}
+      - {origin: geometry, locator: "LP4",
+         detail: "plot module 12 x 25 m (median over 95 rectangular plots of 159)"}
+      - *src_plot_tiling
+      - *src_no_word_for_it
+    unknown: "what the LP code means is not stated in any file"
+    how_to_verify: "ask Roshn for the typology key, or the raster legend table.JPG that does not resolve"
+
+  "LP5":
+    use: residential
+    subtype: "typology:LP5"
+    sources:
+      - {origin: layer_name, observed: "LP5", locator: "LP5", detail: "layer name"}
+      - {origin: geometry, locator: "LP5",
+         detail: "plot module 10 x 25 m (median over 13 rectangular plots of 24)"}
+      - *src_plot_tiling
+      - *src_no_word_for_it
+    unknown: "what the LP code means is not stated in any file"
+    how_to_verify: "ask Roshn for the typology key, or the raster legend table.JPG that does not resolve"
+
+  "TH3":
+    use: residential
+    subtype: "typology:TH3"
+    sources:
+      - {origin: layer_name, observed: "TH3", locator: "TH3", detail: "layer name"}
+      - {origin: geometry, locator: "TH3",
+         detail: "plot module 8 x 25 m (median over 37 rectangular plots of 78)"}
+      - *src_plot_tiling
+      - *src_no_word_for_it
+    unknown: "what the TH code means is not stated in any file"
+    how_to_verify: "ask Roshn for the typology key, or the raster legend table.JPG that does not resolve"
+
+  "C10":
+    use: residential
+    subtype: "typology:C10"
+    sources:
+      - {origin: layer_name, observed: "C10", locator: "C10", detail: "layer name"}
+      - {origin: geometry, locator: "C10",
+         detail: "plot module 16 x 25 m (median over 55 rectangular plots of 188)"}
+      - *src_plot_tiling
+      - *src_no_word_for_it
+    unknown: "what the C code means is not stated in any file"
+    how_to_verify: "ask Roshn for the typology key, or the raster legend table.JPG that does not resolve"
+
+  # --- annotation ---------------------------------------------------------
+  "T4":
+    use: annotation
+    subtype: road_label
+    role: annotation
+    sources:
+      - {origin: layer_name, observed: "T4", locator: "T4", detail: "layer name"}
+      - {origin: entity_text, observed: "شارع عرض ١٥ متر", observed_raw: "ahvU uvQ  15   ljv",
+         locator: "T4, Model", layout: "Model",
+         detail: "153 of the 416 TEXT read as a street name and width",
+         reading: {verbatim: false, method: "shx-map:xarb.shx", corpus_verified: true}}
+    note: >-
+      TRAP: this layer was once counted as a 9th plot type and made the unit
+      mix wrong by 416. 416 TEXT in Model, ZERO polygons. It is `role:
+      annotation` that guards it
+
+  # --- land uses named in other ways ---------------------------------------
+  #
+  # All of them come from the layer name alone: one corpus, so `stated` and not
+  # `corroborated`. There are 30 T4 TEXT that read 'حديقة' (garden) and 12 that
+  # read 'تجاري' (commercial) in this file, but their counts do not match the
+  # parcel count of any layer, so not one of them is attached as a source.
+  # Attaching them would raise the evidence grade on top of a correspondence
+  # that does not exist.
+  "Open Spaces":
+    use: open_space
+    sources:
+      - {origin: layer_name, observed: "Open Spaces", locator: "Open Spaces",
+         detail: "layer name"}
+    note: "24 of 68 polygons cannot be measured (23 bulge, 1 open); their area is withheld"
+  "Pocket Park":
+    use: open_space
+    sources:
+      - {origin: layer_name, observed: "Pocket Park", locator: "Pocket Park",
+         detail: "layer name"}
+  "Linear Park":
+    use: open_space
+    sources:
+      - {origin: layer_name, observed: "Linear Park", locator: "Linear Park",
+         detail: "layer name"}
+    note: "4 of 21 polygons cannot be measured (3 bulge, 1 open); their area is withheld"
+  "District Park":
+    use: open_space
+    sources:
+      - {origin: layer_name, observed: "District Park", locator: "District Park",
+         detail: "layer name"}
+    note: "declared in the layer table and has no entity in Model"
+  "Neighbourhood Park":
+    use: open_space
+    sources:
+      - {origin: layer_name, observed: "Neighbourhood Park",
+         locator: "Neighbourhood Park", detail: "layer name"}
+    note: "declared in the layer table and has no entity in Model"
+
+  "Commercial Retail":
+    use: commercial
+    sources:
+      - {origin: layer_name, observed: "Commercial Retail",
+         locator: "Commercial Retail", detail: "layer name"}
+    note: "3 parcel polygons plus 15 HATCHes; a HATCH carries no area and is not a parcel"
+  "District Mall":
+    use: commercial
+    sources:
+      - {origin: layer_name, observed: "District Mall", locator: "District Mall",
+         detail: "layer name"}
+
+  "Health Care":
+    use: community
+    sources:
+      - {origin: layer_name, observed: "Health Care", locator: "Health Care",
+         detail: "layer name"}
+  "Community Experience Center":
+    use: community
+    sources:
+      - {origin: layer_name, observed: "Community Experience Center",
+         locator: "Community Experience Center", detail: "layer name"}
+    note: "its only polygon has bulges; its area is withheld, not zero"
+  "Site Administration Building":
+    use: community
+    sources:
+      - {origin: layer_name, observed: "Site Administration Building",
+         locator: "Site Administration Building", detail: "layer name"}
+
+  "Distribution Sub Station":
+    use: utility
+    sources:
+      - {origin: layer_name, observed: "Distribution Sub Station",
+         locator: "Distribution Sub Station", detail: "layer name"}
+  "Sub Station":
+    use: utility
+    sources:
+      - {origin: layer_name, observed: "Sub Station", locator: "Sub Station",
+         detail: "layer name"}
+  "Sanitary Lifting Station":
+    use: utility
+    sources:
+      - {origin: layer_name, observed: "Sanitary Lifting Station",
+         locator: "Sanitary Lifting Station", detail: "layer name"}
+  "Reservoir":
+    use: utility
+    sources:
+      - {origin: layer_name, observed: "Reservoir", locator: "Reservoir",
+         detail: "layer name"}
+  "STP":
+    use: utility
+    sources:
+      - {origin: layer_name, observed: "STP", locator: "STP", detail: "layer name"}
+    unknown: "what STP stands for is not stated in this file"
+    how_to_verify: "ask Roshn for the list of utility abbreviations"
+    note: >-
+      declared in the layer table and has no entity in Model. 'stp' is only
+      three letters, so it is refused as a vocabulary token and cannot state
+      anything — this layer is `inferred`, not `stated`
+  "Telecom - GSM":
+    use: utility
+    sources:
+      - {origin: layer_name, observed: "Telecom - GSM", locator: "Telecom - GSM",
+         detail: "layer name"}
+  "Telecom Room":
+    use: utility
+    sources:
+      - {origin: layer_name, observed: "Telecom Room", locator: "Telecom Room",
+         detail: "layer name"}
+  "Provisional Utility Area":
+    use: utility
+    sources:
+      - {origin: layer_name, observed: "Provisional Utility Area",
+         locator: "Provisional Utility Area", detail: "layer name"}
+
+  # --- structure ----------------------------------------------------------
+  "BlockBoundary":
+    use: structure
+    subtype: block_boundary
+    role: structure        # not a parcel — counting it would count the plot area twice
+    sources:
+      - {origin: layer_name, observed: "BlockBoundary", locator: "BlockBoundary",
+         detail: "layer name"}
+      - *src_plot_tiling
+    note: >-
+      197 polygons. Its layer name is one run-on word, so the token 'boundary'
+      does NOT pass the word boundary test and this layer is `inferred`, not
+      `stated` — that is correct and deliberate: the literal test does not
+      guess where a word was split
+
+  # --- land use layers that are declared and EMPTY -------------------------
+  #
+  # All of them have entity_count = 0 in the layer table. They are here, not
+  # only in `empty_but_declared`, because their names name a land use: an
+  # answer that says "there are 9 education parcels on six other layers, and
+  # the layer CS-Land use-00_Education really is empty" is far more useful than
+  # a nil with no explanation. It is a nil here that was once answered as
+  # "there may be no houses in this drawing".
+  "CS-Land use-00_Education":
+    use: education
+    sources:
+      - {origin: layer_name, observed: "CS-Land use-00_Education",
+         locator: "CS-Land use-00_Education", detail: "layer name"}
+    note: "declared in the layer table and contains ZERO entities"
+  "CS-Land use-00_Commercial":
+    use: commercial
+    sources:
+      - {origin: layer_name, observed: "CS-Land use-00_Commercial",
+         locator: "CS-Land use-00_Commercial", detail: "layer name"}
+    note: "declared in the layer table and contains ZERO entities"
+  "CS-Land use-00_Open Space":
+    use: open_space
+    sources:
+      - {origin: layer_name, observed: "CS-Land use-00_Open Space",
+         locator: "CS-Land use-00_Open Space", detail: "layer name"}
+    note: "declared in the layer table and contains ZERO entities"
+  "CS-Land use-00_Religious_Mosque":
+    use: religious
+    sources:
+      - {origin: layer_name, observed: "CS-Land use-00_Religious_Mosque",
+         locator: "CS-Land use-00_Religious_Mosque", detail: "layer name"}
+    note: "declared in the layer table and contains ZERO entities"
+  "CS-Land use-00_Utilities":
+    use: utility
+    sources:
+      - {origin: layer_name, observed: "CS-Land use-00_Utilities",
+         locator: "CS-Land use-00_Utilities", detail: "layer name"}
+    note: "declared in the layer table and contains ZERO entities"
+  "CS-Land use-00_Roads and Parking":
+    use: road
+    subtype: roads_and_parking
+    sources:
+      - {origin: layer_name, observed: "CS-Land use-00_Roads and Parking",
+         locator: "CS-Land use-00_Roads and Parking", detail: "layer name"}
+    unknown: "the layer name names two land uses at once and the file gives no way to separate them"
+    how_to_verify: "ask the drawing's author for the list of CS land use layers"
+    note: "declared in the layer table and contains ZERO entities, so nothing depends on choosing `road` over `parking`"
+
+  "Parking Area":
+    use: parking
+    sources:
+      - {origin: layer_name, observed: "Parking Area", locator: "Parking Area",
+         detail: "layer name"}
+    note: "declared in the layer table and contains ZERO entities"
+  "Parking - Pocket Park":
+    use: parking
+    sources:
+      - {origin: layer_name, observed: "Parking - Pocket Park",
+         locator: "Parking - Pocket Park", detail: "layer name"}
+    note: >-
+      declared in the layer table and contains ZERO entities. Its name contains
+      'Park' and it is NOT a park: the global pattern order already puts
+      parking above open space, and this entry locks it in for this drawing
+  "Living Plaza":
+    use: open_space
+    sources:
+      - {origin: layer_name, observed: "Living Plaza", locator: "Living Plaza",
+         detail: "layer name"}
+    note: "declared in the layer table and contains ZERO entities"
+  "Living Plaza-Road":
+    use: road
+    sources:
+      - {origin: layer_name, observed: "Living Plaza-Road",
+         locator: "Living Plaza-Road", detail: "layer name"}
+    note: "declared in the layer table and contains ZERO entities"
+
+  # --- road pavement, not parcels ------------------------------------------
+  #
+  # Both are here because the global patterns read them wrongly: 'PARKING'
+  # inside the name of a road-marking layer is not a parking land use. A wrong
+  # classification is worse than no classification, so both are locked with the
+  # right role instead of being left to the patterns.
+  "- ROADS-PARKING-MARKINGS":
+    use: road
+    subtype: road_markings
+    role: overlay
+    sources:
+      - {origin: layer_name, observed: "- ROADS-PARKING-MARKINGS",
+         locator: "- ROADS-PARKING-MARKINGS", detail: "layer name"}
+      - {origin: geometry, locator: "- ROADS-PARKING-MARKINGS",
+         detail: "108 entities: 94 LINE and 14 open LWPOLYLINE; not one closed polygon"}
+    note: "markings on the pavement, not parking bays. role=overlay so that it is never counted as a parcel"
+  "00-Parking flush kerbs":
+    use: parking
+    subtype: kerb_line
+    role: overlay
+    sources:
+      - {origin: layer_name, observed: "00-Parking flush kerbs",
+         locator: "00-Parking flush kerbs", detail: "layer name"}
+      - {origin: geometry, locator: "00-Parking flush kerbs",
+         detail: "13 LINE; no closed polygon, so there is no bay to count"}
+    note: "kerb lines, not parking bays"
+
+# Layers that ARE in the layer table but contain nothing. A query here returns
+# nil and reads as 'that land use is not in the drawing'.
+#
+# This list is a hand-written ADDITION, not the only source: the response also
+# derives, on its own, every classified layer whose entity_count is zero, so
+# that an empty layer first appearing in the next revision does not have to
+# wait for someone to remember to add it here.
+empty_but_declared:
+  - "CS-Land use-00_Education"
+  - "CS-Land use-00_Commercial"
+  - "CS-Land use-00_Open Space"
+  - "CS-Land use-00_Religious_Mosque"
+  - "CS-Land use-00_Roads and Parking"
+  - "CS-Land use-00_Utilities"

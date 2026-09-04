@@ -1,0 +1,32 @@
+# The build context is this directory, and the builder stage does `COPY . .`
+# AFTER taking node_modules from the deps stage. Without this file a
+# node_modules tree that happens to exist on the host — one `npm ci` run for a
+# local typecheck is enough — is uploaded as context and then copied straight
+# over the one the image built for itself. That is slow (hundreds of megabytes
+# per build) and wrong (the host's tree is built for the host's platform, not
+# alpine).
+node_modules
+
+# Build output. `next build` runs inside the image; a stale local .next only
+# has to be uploaded and then overwritten.
+.next
+out
+
+# Never bake local secrets into an image.
+.env
+.env.*
+!.env.example
+
+.git
+.gitignore
+*.log
+npm-debug.log*
+
+# Editor and OS noise.
+.DS_Store
+Thumbs.db
+.vscode
+.idea
+
+# TypeScript incremental build cache — a host artefact, regenerated in-image.
+*.tsbuildinfo

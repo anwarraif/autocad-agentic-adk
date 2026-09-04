@@ -1,0 +1,120 @@
+# ---------------------------------------------------------------------------
+# ADK x AutoCAD POC — local stack.
+#
+#   docker compose up --build
+#
+# Ports come from .env (WEB_PORT / CAD_API_PORT / CAD_MCP_PORT), never from
+# literals here. The block 4310-4313 was picked because it is far from the
+# usual minefield (3000/8000/8080/5432/27017) and was verified free on this
+# machine; see docs/PORTS.md.
+#
+# There is no mongo service: the project uses the shared cluster from
+# MONGODB_URI. A local fallback is defined under the `local-mongo` profile and
+# is off unless explicitly requested.
+# ---------------------------------------------------------------------------
+
+name: poc-adk-autocad
+
+services:
+  cad-api:
+    build:
+      context: ./cad_api
+    image: poc-adk-autocad/cad-api:latest
+    env_file: .env
+    environment:
+      CAD_DXF_DIR: /data/dxf
+      CAD_SVG_DIR: /data/svg
+      CAD_CORS_ORIGINS: "http://localhost:${WEB_PORT:-4310}"
+    ports:
+      - "${CAD_API_PORT:-4311}:8000"
+    volumes:
+      # DXF input is read-only: the source drawings are not ours to modify.
+      - ./data/dxf:/data/dxf:ro
+      # Original DWGs: the pipeline converts them itself now (LibreDWG is in
+      # the image), so no hand-conversion step is needed.
+      - ./data/dwg:/data/dwg:ro
+      - cad-svg:/data/svg
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8000/health').read()"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  cad-mcp:
+    build:
+      context: ./cad_mcp
+    image: poc-adk-autocad/cad-mcp:latest
+    env_file: .env
+    environment:
+      CAD_API_URL: http://cad-api:8000
+      CAD_MCP_TRANSPORT: http
+    ports:
+      - "${CAD_MCP_PORT:-4312}:8000"
+    depends_on:
+      cad-api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # RESTART THIS WHENEVER cad-mcp IS REBUILT OR RESTARTED.
+  #
+  # The agent opens one MCP session at start-up and never reopens it. When
+  # cad-mcp goes away that session dies, and ADK reports the loss as a
+  # *warning* -- "Failed to get tools from toolset McpToolset: Session
+  # terminated" -- then runs every later turn with no tools at all. The model
+  # does not mention that it has no tools; it answers anyway. Measured: asked
+  # five times for the total length of one selection it returned 29,484.58,
+  # 738.74, 514,642.50, 2,238.93 and 20,402.68 against a true 5,965.078.
+  #
+  # `depends_on` cannot express this -- it orders start-up, it does not
+  # restart a dependent when its dependency restarts. The safety net is in
+  # web/app/api/agent/route.ts, which refuses to present an answer produced
+  # with zero tool calls; this comment is the cure rather than the alarm.
+  cad-agent:
+    build:
+      context: ./cad_agent
+    image: poc-adk-autocad/cad-agent:latest
+    env_file: .env
+    environment:
+      GOOGLE_GENAI_USE_VERTEXAI: "FALSE"
+      CAD_API_URL: http://cad-api:8000
+      CAD_MCP_URL: http://cad-mcp:8000/mcp
+    ports:
+      - "${AGENT_PORT:-4314}:8000"
+    depends_on:
+      cad-api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./web
+      args:
+        NEXT_PUBLIC_API_URL: "http://localhost:${CAD_API_PORT:-4311}"
+    image: poc-adk-autocad/web:latest
+    environment:
+      NEXT_PUBLIC_API_URL: "http://localhost:${CAD_API_PORT:-4311}"
+      CAD_API_INTERNAL_URL: http://cad-api:8000
+      AGENT_URL: http://cad-agent:8000
+    ports:
+      - "${WEB_PORT:-4310}:3000"
+    depends_on:
+      cad-api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Fallback only. Start with:  docker compose --profile local-mongo up
+  # The container port stays 27017; only the host port moves out of the way.
+  mongo:
+    image: mongo:7
+    profiles: ["local-mongo"]
+    ports:
+      - "${MONGO_PORT:-4313}:27017"
+    volumes:
+      - mongo-data:/data/db
+    restart: unless-stopped
+
+volumes:
+  cad-svg:
+  mongo-data:

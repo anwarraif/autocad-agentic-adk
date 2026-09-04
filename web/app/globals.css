@@ -1,0 +1,2192 @@
+/* ---------------------------------------------------------------------------
+   ADK x AutoCAD viewer.
+
+   Dark chrome around a white drawing sheet. The sheet is white because CAD
+   colours are authored for paper (see render.py WHITE_SHEET) — five of the
+   sixteen drawings were invisible on a dark ground. Hand-written rather than a
+   utility framework: this is one screen, and the build stays free of a CSS
+   toolchain.
+   --------------------------------------------------------------------------- */
+
+:root {
+  --bg: #0b0f14;
+  --panel: #131a22;
+  --panel-2: #1a232d;
+  --border: #26313d;
+  --text: #e6edf3;
+  --muted: #8b98a5;
+  --accent: #38bdf8;
+  --accent-dim: #0e7490;
+  --warn: #fbbf24;
+  --error: #f87171;
+  --radius: 8px;
+  --topbar-h: 68px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+code,
+.mono {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+  font-size: 0.92em;
+}
+
+h1,
+h4 {
+  margin: 0;
+}
+
+button {
+  font: inherit;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 10px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+button:hover:not(:disabled) {
+  background: #24313f;
+  border-color: #3a4a5c;
+}
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+select,
+input[type="text"],
+input:not([type]),
+textarea {
+  font: inherit;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  width: 100%;
+}
+textarea {
+  resize: vertical;
+}
+select:focus,
+textarea:focus,
+input:focus {
+  outline: 2px solid var(--accent-dim);
+  outline-offset: -1px;
+}
+
+.muted {
+  color: var(--muted);
+}
+.small {
+  font-size: 12px;
+}
+.error {
+  color: var(--error);
+}
+
+/* --- layout --------------------------------------------------------------- */
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 10px 18px;
+  min-height: var(--topbar-h);
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.brand-mark {
+  font-size: 22px;
+  color: var(--accent);
+  line-height: 1;
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+.brand-mark:hover {
+  background: var(--panel-2);
+  border-color: var(--border);
+}
+.brand-mark[aria-expanded="false"] {
+  color: var(--muted);
+}
+
+.panel-toggle {
+  margin-left: 12px;
+  white-space: nowrap;
+}
+.brand h1 {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.brand p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.pickers {
+  display: flex;
+  gap: 14px;
+  align-items: flex-end;
+  flex: 1;
+  justify-content: flex-end;
+}
+.pickers label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 190px;
+  max-width: 420px;
+  flex: 1 1 auto;
+}
+.pickers label span {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.banner {
+  padding: 8px 18px;
+  background: var(--panel-2);
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.banner.error {
+  background: #2a1414;
+  color: #fca5a5;
+  border-bottom-color: #4a1f1f;
+}
+.banner.warn {
+  background: #2a2412;
+  color: var(--warn);
+  border-bottom-color: #4a3f1f;
+}
+.banner code {
+  background: #0b0f14;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.workspace {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  /* Positioning context for the drawer form of the sidebar below. */
+  position: relative;
+}
+
+.sidebar.closed {
+  display: none;
+}
+
+/* --- viewer --------------------------------------------------------------- */
+
+/* The rendered SVG paints its own white sheet (see render.py: CAD colours are
+   authored for paper, and on a dark ground the dark ones vanish). The pane
+   around it is a neutral light grey so the sheet edge stays visible without
+   fighting the drawing. */
+.viewer {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: #e8eaed;
+}
+
+.viewer-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.viewer-toolbar button {
+  min-width: 34px;
+}
+.zoom-readout {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  min-width: 54px;
+}
+.viewer-hint {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* --- the agent's answer, marked on the drawing ---------------------------
+   Asked for three times on 23 August 2026 and missing all three times. The
+   badge is the counterpart to the marks: the marks say WHERE, and the badge
+   says how many, how many could not be drawn, and how to get rid of them.
+
+   It carries the same colour as the marks themselves so the connection needs
+   no explaining, and a colour used nowhere else in this stylesheet so that
+   "what the agent answered" can never be read as "what I selected". */
+.answer-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text);
+  background: rgba(219, 39, 119, 0.12);
+  border: 1px solid rgba(219, 39, 119, 0.55);
+  border-radius: 6px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+.answer-swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #db2777;
+  flex-shrink: 0;
+}
+/* Caveats are quieter than the count but still present. A limit that is only
+   in a tooltip is a limit nobody reads. */
+.answer-badge-note {
+  color: var(--muted);
+}
+.answer-badge .link-button {
+  padding: 0;
+}
+
+/* Crosshair, not the grab hand: with 1-2 px linework the cursor almost never
+   sat on a hittable stroke, so the hand showed everywhere and the canvas read
+   as "drag only". The crosshair says "pick something"; it flips to grabbing
+   while an actual drag is in progress. */
+.viewer-canvas {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  cursor: crosshair;
+  touch-action: none;
+}
+.viewer-canvas.panning {
+  cursor: grabbing;
+}
+.viewer-canvas svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+/* The drawing itself must not intercept the grab cursor per-path. */
+.viewer-canvas svg path {
+  cursor: pointer;
+}
+
+.viewer-overlay {
+  position: absolute;
+  inset: var(--topbar-h) 0 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(232, 234, 237, 0.9);
+  color: #44515e;
+  pointer-events: none;
+}
+.spinner {
+  width: 26px;
+  height: 26px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* --- sidebar -------------------------------------------------------------- */
+
+.sidebar {
+  width: 380px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border-left: 1px solid var(--border);
+  min-height: 0;
+}
+
+.tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.tabs button {
+  flex: 1;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 10px 6px;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+  font-size: 13px;
+}
+.tabs button.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+  background: var(--panel-2);
+}
+
+.tab-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+  min-height: 0;
+}
+
+/* --- entity facts --------------------------------------------------------- */
+
+.entity-facts {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  gap: 6px 10px;
+  margin: 0 0 14px;
+  align-items: baseline;
+}
+.entity-facts dt {
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.entity-facts dd {
+  margin: 0;
+  word-break: break-word;
+}
+.attrib-row {
+  display: contents;
+}
+
+/* What a label is a label FOR.
+   Set apart from the entity's own facts on purpose: these are properties of a
+   DIFFERENT object, and running them into the same list is how "the area" ends
+   up ambiguous between the text and the parcel — which is the confusion this
+   block exists to end. */
+.entity-parcel {
+  margin: 6px 0 14px;
+  padding: 8px 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+}
+.entity-parcel h4 {
+  margin-top: 0;
+}
+.entity-parcel .link-button {
+  padding: 0;
+}
+
+.entity-text p {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  margin: 6px 0 14px;
+  white-space: pre-wrap;
+}
+
+h4 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--muted);
+  margin: 16px 0 6px;
+}
+
+/* --- comments ------------------------------------------------------------- */
+
+.comment-list {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.comment-list li {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent-dim);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+.comment-list li.pending {
+  opacity: 0.6;
+  border-left-color: var(--warn);
+}
+.comment-list p {
+  margin: 0 0 4px;
+  white-space: pre-wrap;
+}
+.comment-meta {
+  font-size: 11px;
+  color: var(--muted);
+}
+.comment-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+/* --- layers --------------------------------------------------------------- */
+
+.layer-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.layer-filter {
+  margin-bottom: 10px;
+}
+.layer-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.layer-list label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.layer-list label:hover {
+  background: var(--panel-2);
+}
+.layer-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.layer-count {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+}
+input[type="checkbox"] {
+  width: auto;
+  accent-color: var(--accent);
+}
+
+/* --- info ----------------------------------------------------------------- */
+
+.bar-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.bar-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+/* --- chat ----------------------------------------------------------------- */
+
+.chat-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+}
+.chat-log {
+  flex: 1;
+  min-height: 160px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.chat-message {
+  padding: 8px 10px;
+  border-radius: 8px;
+  white-space: pre-wrap;
+  line-height: 1.45;
+}
+.chat-message.user {
+  background: var(--accent-dim);
+  align-self: flex-end;
+  max-width: 90%;
+}
+.chat-message.agent {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+}
+/* A past answer whose marks can be put back on the drawing.
+   Only the cursor and a hover edge -- an answer is a document to be read
+   first, and a paragraph styled like a button reads as a control that has
+   swallowed the text. */
+.chat-message.replayable {
+  cursor: pointer;
+}
+.chat-message.replayable:hover {
+  border-color: var(--accent);
+}
+.chat-message.agent.marked {
+  border-color: var(--accent);
+}
+.answer-remark {
+  margin-top: 6px;
+  font-size: 11px;
+}
+/* Taking an answer somewhere else. A link rather than a button because that
+   is what it is — a download — and it sits above the re-mark line so the two
+   read as one pair: show me these here, or take these away. */
+.answer-export {
+  margin-top: 8px;
+  font-size: 11px;
+  /* The size picker and the control it changes, on one line. Stacked, the
+     select reads as a field the reader has to fill in before anything
+     happens; beside the link it reads as what it is — the same export, at a
+     different cell size. Wraps rather than overflows, because the panel is
+     narrow and the answer beside it is the thing worth reading. */
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.answer-export-link {
+  color: var(--accent);
+  text-decoration: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 8px;
+  background: var(--panel-2);
+  white-space: nowrap;
+}
+.answer-export-link:hover,
+.answer-export-link:focus-visible {
+  border-color: var(--accent);
+  background: #24313f;
+}
+.answer-remark-on {
+  color: var(--accent);
+  font-size: 11px;
+}
+.chat-message.system {
+  background: #2a2412;
+  color: var(--warn);
+  font-size: 13px;
+}
+.suggestions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.suggestions button {
+  width: 100%;
+  text-align: left;
+  font-size: 13px;
+  color: var(--muted);
+}
+.handle-chip {
+  padding: 1px 6px;
+  margin: 0 1px;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--accent);
+  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.35);
+}
+
+/* ---------------------------------------------------------------------------
+   Narrow windows — half a screen, a split view, a laptop.
+
+   The sidebar used to be laid out *below* the viewer here. That looked fine
+   until the header grew (the drawing and layout pickers stack at this width,
+   and a warning banner may appear), at which point the panel was pushed past
+   the bottom of a `100vh` page with `overflow: hidden`: still in the DOM,
+   impossible to reach, and the Entity, Layers, Agent and Info tabs simply
+   vanished.
+
+   It is now a drawer that floats over the drawing instead. Its position no
+   longer depends on how tall anything above it happens to be, so it cannot be
+   pushed anywhere, and the toggle in the toolbar dismisses it when the drawing
+   needs the room.
+   --------------------------------------------------------------------------- */
+@media (max-width: 900px) {
+  .sidebar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    height: min(60%, 460px);
+    border-left: 0;
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -14px 28px rgba(0, 0, 0, 0.45);
+    z-index: 5;
+  }
+  .pickers {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .pickers label {
+    min-width: 0;
+    max-width: none;
+  }
+  .brand p {
+    display: none;
+  }
+  .viewer-hint {
+    display: none;
+  }
+}
+
+/* --- hover comment popup & export ----------------------------------------- */
+
+.hover-popup {
+  position: fixed;
+  z-index: 40;
+  max-width: 340px;
+  background: #ffffff;
+  color: #1a232d;
+  border: 1px solid #cbd5e1;
+  border-left: 3px solid var(--warn);
+  border-radius: 8px;
+  padding: 8px 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  pointer-events: none; /* never steal the click that opens the panel */
+  font-size: 13px;
+}
+.hover-popup p {
+  margin: 4px 0;
+  line-height: 1.35;
+}
+.hover-popup-handle {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.export-button {
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 10px;
+  text-decoration: none;
+  white-space: nowrap;
+  font-size: 13px;
+}
+.export-button:hover {
+  background: #24313f;
+  border-color: #3a4a5c;
+}
+/* An export that cannot be offered, shown rather than hidden.
+   A control that is simply absent reads as a feature that is broken; one that
+   is visibly off, with the reason on hover, reads as a drawing that cannot do
+   this — which is the true statement, and true of seventeen of the eighteen
+   drawings here. */
+.export-button-off {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.export-button-off:hover {
+  background: var(--panel-2);
+  border-color: var(--border);
+}
+
+/* --- region selection -----------------------------------------------------
+   Every colour here comes from the palette at the top of this file.
+   The first version of this block was written against a light theme and
+   shipped `background: #fff` with the inherited near-white `--text` on top of
+   it: a white pill with an invisible label, sitting in a dark toolbar. It
+   read as a dead white rectangle nobody could click. Nothing structural was
+   wrong -- it was never looked at.
+   -------------------------------------------------------------------------- */
+
+.region-button {
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 3px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.region-button:hover:not(:disabled) {
+  border-color: var(--accent-dim);
+  color: var(--accent);
+}
+.region-button.active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: #ffffff;
+}
+/* Disabled must still be READABLE. A control the user cannot use but also
+   cannot identify is worse than one that is simply absent -- the reason it is
+   off is in the toolbar hint and in the Selection tab, and neither is worth
+   anything if the button itself is a blank shape. */
+.region-button:disabled,
+.region-button.blocked {
+  opacity: 0.55;
+  border-style: dashed;
+}
+.region-button:disabled {
+  cursor: not-allowed;
+}
+/* Blocked-but-clickable: the click opens the explanation, so the cursor must
+   promise an answer rather than refuse one. */
+.region-button.blocked {
+  cursor: help;
+}
+
+/* While a region is being drawn the canvas is not a pan surface. */
+.viewer-canvas.region-drawing {
+  cursor: crosshair;
+}
+/* Space held = pan armed. Declared after .region-drawing so it wins while
+   drawing, which is exactly when the user most needs to be told that their
+   drag will move the drawing rather than place a vertex. */
+.viewer-canvas.space-pan,
+.viewer-canvas.region-drawing.space-pan {
+  cursor: grab;
+}
+.viewer-canvas.space-pan.panning,
+.viewer-canvas.region-drawing.space-pan.panning {
+  cursor: grabbing;
+}
+
+.selection-panel .selection-headline {
+  font-size: 15px;
+  color: var(--text);
+  padding: 8px 0 10px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 10px;
+}
+.selection-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.mode-switch {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.mode-switch button {
+  border: 0;
+  border-radius: 0;
+  background: var(--panel-2);
+  color: var(--muted);
+  padding: 4px 12px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.mode-switch button:hover {
+  color: var(--text);
+}
+.mode-switch button.active {
+  background: var(--accent-dim);
+  color: #ffffff;
+}
+.ask-agent {
+  width: 100%;
+  padding: 8px;
+  margin-bottom: 12px;
+  border: 1px solid var(--accent-dim);
+  background: rgba(56, 189, 248, 0.10);
+  color: var(--accent);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.ask-agent:hover:not(:disabled) {
+  background: rgba(56, 189, 248, 0.18);
+}
+.ask-agent:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Legend swatches use the same two colours as the overlay drawn on the SVG,
+   so the explanation and the thing it explains cannot drift apart. */
+.swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 6px;
+  vertical-align: -2px;
+  border-radius: 2px;
+}
+.swatch.window {
+  background: rgba(37, 99, 235, 0.30);
+  border: 1px solid #4b82f0;
+}
+.swatch.crossing {
+  background: rgba(22, 163, 74, 0.30);
+  border: 1px dashed #3fbf6a;
+}
+.selection-legend li {
+  align-items: flex-start;
+}
+
+.group-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.group-list > li {
+  border-bottom: 1px solid var(--border);
+}
+.group-header {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  align-items: baseline;
+  background: transparent;
+  border: 0;
+  color: var(--text);
+  padding: 6px 2px;
+  cursor: pointer;
+  text-align: left;
+  font-size: 12px;
+}
+.group-header:hover {
+  background: var(--panel-2);
+}
+.group-caret {
+  width: 10px;
+  color: var(--muted);
+}
+.group-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.group-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 0 8px 18px;
+}
+.link-button {
+  background: none;
+  border: 0;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 6px 0;
+  font-size: 12px;
+}
+.selection-basis {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.chat-selection {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  background: rgba(56, 189, 248, 0.10);
+  border: 1px solid var(--accent-dim);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 6px 10px;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+
+kbd {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: var(--text);
+}
+
+/* --- agent step trace and citations --------------------------------------
+   Both are built from the tool calls that actually ran. Shown live the trace
+   explains the wait; kept with the answer it lets a reader check where each
+   figure came from without taking the model's word for it.
+   -------------------------------------------------------------------------- */
+
+.step-trace {
+  margin-bottom: 6px;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+}
+.step-toggle {
+  background: none;
+  border: 0;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0 0 4px;
+  font-size: 11px;
+  font-family: inherit;
+}
+.step {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  color: var(--muted);
+  padding: 1px 0;
+}
+.step.done .step-name {
+  color: var(--accent);
+}
+.step-mark {
+  width: 10px;
+}
+.step-name {
+  white-space: nowrap;
+}
+.step-args {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.75;
+}
+
+.citations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+.citations-label {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-right: 2px;
+}
+.citation {
+  font-family: ui-monospace, monospace;
+  font-size: 10px;
+  color: var(--muted);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- a selection made of several parts ---------------------------------- */
+/* Every colour here comes from the palette above. A previous addition to
+   this file hard-coded `background: #fff` and produced a white button with
+   near-white text on a dark panel — unreadable, and only caught because the
+   user photographed it. */
+.selection-parts-head {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 12px 0 6px;
+}
+.selection-parts {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.selection-part {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.selection-part-head {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+}
+.selection-part-toggle {
+  flex: 1;
+  text-align: left;
+  background: none;
+  border: 0;
+  color: var(--text);
+  font: inherit;
+  font-size: 13.5px;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+.selection-part-toggle:hover {
+  background: var(--panel);
+}
+.selection-part-caret {
+  color: var(--muted);
+  margin-right: 6px;
+}
+.selection-part-remove {
+  background: none;
+  border: 0;
+  border-left: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 12px;
+  cursor: pointer;
+}
+.selection-part-remove:hover {
+  color: var(--error);
+  background: var(--panel);
+}
+.selection-part-groups {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 6px;
+  border-top: 1px solid var(--border);
+}
+.selection-group-row {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  gap: 10px;
+  background: none;
+  border: 0;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 10px 5px 24px;
+  cursor: pointer;
+}
+.selection-group-row:hover {
+  background: var(--panel);
+}
+.selection-group-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.selection-group-count {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+.selection-rows {
+  list-style: none;
+  margin: 0;
+  padding: 2px 10px 6px 24px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* --- grips on a committed circle ---------------------------------------- */
+/* Palette tokens only, as everywhere else in this file. */
+[data-region-overlay] .region-grip {
+  fill: var(--accent);
+  stroke: #ffffff;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+[data-region-overlay] .region-grip-centre {
+  fill: var(--warn);
+}
+/* The cursor names the grip before the user commits to a drag. A control you
+   cannot tell is draggable is a control nobody drags. */
+.viewer-canvas.grip-move {
+  cursor: move;
+}
+.viewer-canvas.grip-resize {
+  cursor: crosshair;
+}
+.viewer-canvas.grip-moving {
+  cursor: grabbing;
+}
+.viewer-canvas.grip-resizing {
+  cursor: crosshair;
+}
+
+/* --- naming a layer (UPLIFT-13) ------------------------------------------
+   Palette tokens only, as everywhere else in this file. The three blocks
+   below are the three things the spec asks to be visible before a name is
+   stored: how many objects it covers, where the current value came from, and
+   a required `source` in place of the `verified` checkbox UPLIFT-08 removed.
+   -------------------------------------------------------------------------- */
+
+.layer-row {
+  border-radius: 4px;
+}
+.layer-row.open {
+  background: var(--panel-2);
+  padding-bottom: 6px;
+}
+.layer-line {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.layer-line label {
+  flex: 1;
+  min-width: 0;
+}
+.layer-tag-button {
+  flex: none;
+  font-size: 11px;
+  padding: 2px 8px;
+  color: var(--muted);
+}
+.layer-row.open .layer-tag-button,
+.layer-line:hover .layer-tag-button {
+  color: var(--text);
+}
+.layer-tagline {
+  padding: 0 6px 4px 30px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.layer-business-name {
+  color: var(--accent);
+}
+
+.tag-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px 6px 2px;
+  padding: 10px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 12px;
+}
+.tag-impact {
+  line-height: 1.45;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.tag-current {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  line-height: 1.45;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+/* The label is what makes "was" and "now" readable as one comparison rather
+   than as two unrelated lines. */
+.tag-label {
+  display: inline-block;
+  min-width: 62px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.tag-previous,
+.tag-overridden {
+  color: var(--muted);
+}
+.tag-previous .tag-label,
+.tag-overridden .tag-label {
+  color: var(--warn);
+}
+.tag-source-note {
+  padding-left: 62px;
+  color: var(--muted);
+  font-style: italic;
+}
+.tag-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.tag-field > span:first-child {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.tag-problem {
+  color: var(--warn);
+  line-height: 1.4;
+}
+.tag-warning {
+  color: var(--warn);
+  line-height: 1.45;
+  margin: 0;
+}
+.tag-saved {
+  color: var(--accent);
+  line-height: 1.45;
+  margin: 0;
+}
+
+/* --- one question at a time, said out loud (A15) --------------------------
+   Everything here exists because the previous behaviour had no surface at
+   all: the second question was dropped in silence. A waiting question, the
+   tool the running one is calling, the clock, and an explicit cancel.
+   -------------------------------------------------------------------------- */
+
+.chat-message.pending {
+  opacity: 0.85;
+  border: 1px dashed var(--accent);
+}
+.chat-message.cancelled {
+  opacity: 0.6;
+  text-decoration: line-through;
+  text-decoration-color: var(--muted);
+}
+.queued-note {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 11px;
+  text-decoration: none;
+}
+.chat-message.cancelled .queued-note {
+  text-decoration: none;
+}
+.turn-status {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.turn-headline {
+  font-size: 12px;
+  color: var(--accent);
+}
+.turn-args {
+  font-size: 11px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-bottom: 4px;
+}
+/* A long wait is annotated, never cut off. The sentence says what is known
+   and does not claim the agent is stuck — nothing in the browser can tell. */
+.turn-note {
+  font-size: 11px;
+  color: var(--warn);
+  line-height: 1.4;
+  margin-bottom: 6px;
+}
+.ask-queue-state {
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+  padding-top: 6px;
+}
+
+/* Ekspor tag sebagai YAML config. Sengaja tidak menonjol: ia langkah terakhir
+   dari sebuah alur, bukan ajakan. Yang perlu terlihat adalah bahwa ia ADA
+   ketika sudah ada yang ditandai -- dan ia memang hanya muncul saat itu. */
+.tag-export-link {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dotted currentColor;
+}
+.tag-export-link:hover,
+.tag-export-link:focus-visible {
+  text-decoration: none;
+  border-bottom-style: solid;
+}
+
+/* Sisa handle yang dilipat. Sengaja tenang: ia keterangan, bukan peringatan —
+   yang dilipat tetap tertandai di gambar dan tidak ada yang hilang. */
+.handle-fold {
+  color: var(--muted, #94a3b8);
+  font-style: italic;
+}
+
+/* Jawaban agent, dirender sebagai dokumen yang memang ia tulis.
+   Sebelumnya markdown-nya dicetak apa adanya, jadi tabel yang sudah susah
+   payah disusun model terbaca sebagai deretan garis tegak. */
+.chat-message.agent .answer-para { margin: 0 0 .55rem; }
+.chat-message.agent .answer-para:last-child { margin-bottom: 0; }
+.chat-message.agent .answer-list {
+  margin: 0 0 .55rem;
+  padding-left: 1.1rem;
+  list-style: disc;
+}
+.chat-message.agent .answer-list li { margin: .15rem 0; }
+.chat-message.agent .answer-list li[data-depth="1"] { margin-left: 1rem; list-style: circle; }
+.chat-message.agent .answer-list li[data-depth="2"] { margin-left: 2rem; list-style: square; }
+/* Tabel lebar menggulir di dalam kotaknya sendiri, bukan mendorong panel. */
+.answer-table-scroll { overflow-x: auto; margin: 0 0 .55rem; }
+.answer-table { border-collapse: collapse; font-size: .82rem; width: 100%; }
+.answer-table th, .answer-table td {
+  border: 1px solid var(--border, #263241);
+  padding: .22rem .45rem;
+  text-align: left;
+  white-space: nowrap;
+}
+.answer-table th { background: rgba(148,163,184,.10); font-weight: 600; }
+/* Nama layer dan nilai kode: dipisahkan dari kalimat, tidak diteriakkan. */
+.answer-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: .86em;
+  background: rgba(148,163,184,.12);
+  padding: 0 .22em;
+  border-radius: 3px;
+}
+
+/* What the file holds that the picture cannot show.
+ *
+ * Collapsed to one line. It used to be three permanent paragraphs stacked
+ * above the drawing, which is a third of the viewport spent on a caveat the
+ * reader has already absorbed by their second visit. The words are unchanged;
+ * only their weight is. */
+.banner.file-notes {
+  padding: 6px 18px;
+}
+.banner.file-notes > summary {
+  cursor: pointer;
+  color: var(--muted);
+  list-style: none;
+}
+.banner.file-notes > summary::-webkit-details-marker {
+  display: none;
+}
+.banner.file-notes > summary::before {
+  content: "▸";
+  display: inline-block;
+  width: 1.1em;
+  color: var(--muted);
+}
+.banner.file-notes[open] > summary::before {
+  content: "▾";
+}
+.banner.file-notes > summary:hover {
+  color: var(--fg);
+}
+.banner.file-notes p {
+  margin: 8px 0 0 1.1em;
+  max-width: 90ch;
+}
+.banner.file-notes .muted {
+  color: var(--muted);
+}
+
+/* Cell size for an export, beside the control it changes.
+   A select rather than three buttons: the choices are one dimension of one
+   thing (how big a hexagon is), and three buttons would read as three
+   different exports. The label is hidden visually and kept for screen
+   readers — the adjacent button already says what is being exported, so
+   repeating it on screen would be noise, but a bare select with no accessible
+   name is a control nobody can identify out of context. */
+/* The label, on screen rather than only for a screen reader.
+   It was `visually-hidden`, which is the right call when a control is
+   self-evident from what sits beside it, and the wrong one here: a bare
+   select offering "9 · neighbourhood" reads as a setting for the VIEW, and
+   the one thing a reader needs to know is that it changes the downloaded
+   FILE and nothing on screen. Asked in review on 1 September 2026 by someone
+   who had clicked through all three options waiting for the map to move.
+   The select keeps its `title`, which is the long form of the same fact. */
+.export-res {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.export-res-label {
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.export-res select {
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 12px;
+}
+.export-res select:hover {
+  border-color: #3a4a5c;
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --- the deck.gl map views ------------------------------------------------- */
+/*
+   Three views share one slot. The SVG viewer stays mounted behind `hidden`
+   while a map view is on screen -- three features read its DOM -- so the slot
+   is a flex child that collapses rather than a stacking context, and `hidden`
+   does the rest.
+*/
+.view-slot {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+.view-slot[hidden] {
+  display: none;
+}
+
+/* The segmented view switcher. Not a dropdown: this is the one control that
+   is switched constantly, and all three states have to be visible at once so
+   that "there is also a 3D view" is discoverable without opening anything. */
+.view-switch {
+  display: inline-flex;
+  align-self: end;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--panel-2);
+}
+.view-switch button {
+  border: 0;
+  border-radius: 0;
+  padding: 6px 11px;
+  background: transparent;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.view-switch button + button {
+  border-left: 1px solid var(--border);
+}
+.view-switch button:hover:not(.active) {
+  background: #22303e;
+  color: var(--text);
+}
+.view-switch button.active {
+  background: var(--accent-dim);
+  color: #eaf7ff;
+}
+
+/* The map pane is dark, unlike the SVG pane: there is no white paper sheet
+   here, and satellite imagery and extruded volumes both read better against a
+   dark ground than against the light grey the sheet needs. */
+.map-viewer {
+  background: #0a0e13;
+}
+.map-canvas {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.map-canvas canvas {
+  outline: none;
+}
+
+.map-toolbar {
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.toolbar-sep {
+  width: 1px;
+  align-self: stretch;
+  background: var(--border);
+}
+.toolbar-label {
+  color: var(--muted);
+  font-size: 12px;
+}
+.toolbar-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.toolbar-select select {
+  padding: 3px 6px;
+}
+.toolbar-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+}
+.toolbar-btn.accent {
+  background: var(--accent-dim);
+  border-color: #1195b8;
+}
+
+.map-empty {
+  margin: auto;
+  max-width: 46ch;
+  padding: 24px;
+  text-align: center;
+  color: var(--text);
+}
+.map-empty h4 {
+  margin-bottom: 8px;
+}
+.map-empty p {
+  margin: 6px 0;
+  line-height: 1.5;
+}
+
+/* Hover tooltip. Follows the pointer, so it must never be a hit target
+   itself -- a tooltip under the cursor would steal the click that selects. */
+.map-tip {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+  max-width: 30ch;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: rgba(14, 20, 27, 0.94);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.45;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+.map-tip-use {
+  color: var(--accent);
+}
+
+/* The legend is part of the encoding, not decoration: no eight-hue palette
+   clears the all-pairs colour-separation floors a choropleth needs, so the
+   name beside each swatch -- and the click that isolates one use -- are what
+   make the colours readable. See lib/landUseColors.ts. */
+.map-legend {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  z-index: 4;
+  min-width: 190px;
+  max-height: 46%;
+  overflow-y: auto;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(14, 20, 27, 0.9);
+  backdrop-filter: blur(3px);
+}
+/* Stacked above the land-use legend, sharing its left edge. The two are read
+   together — "which use" and "how many" — and a reader should not have to
+   look in two corners for them. */
+.map-cell-legend {
+  bottom: auto;
+  top: 12px;
+  min-width: 150px;
+}
+.map-legend-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+  padding: 0 4px;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.map-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 6px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  font-size: 12px;
+  text-align: left;
+}
+.map-legend-row:hover {
+  background: #1c2732;
+  border-color: var(--border);
+}
+/* A ramp class is a reading, not a control: it filters nothing, so it gets no
+   hover affordance that would suggest it does. */
+.map-legend-row.static,
+.map-legend-row.static:hover {
+  background: transparent;
+  border-color: transparent;
+  cursor: default;
+}
+.map-legend-row.on {
+  background: var(--accent-dim);
+  border-color: #1195b8;
+}
+.map-legend-row i {
+  width: 11px;
+  height: 11px;
+  flex-shrink: 0;
+  border-radius: 2px;
+  /* The same dark ring the fills carry on the canvas: over imagery there is
+     no fixed surface to contrast against, so every swatch brings its own. */
+  border: 1px solid rgba(10, 14, 20, 0.85);
+}
+.map-legend-row span {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.map-legend-row b {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+/* What this view cannot show, one click away. Collapsed rather than absent:
+   a map missing every building looks complete unless it says otherwise. */
+.map-notes {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  z-index: 4;
+  max-width: 44ch;
+  max-height: 72%;
+  overflow-y: auto;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(14, 20, 27, 0.92);
+  font-size: 12px;
+  line-height: 1.5;
+}
+/* The notes and the catchment share the top-right corner, and the notes grow
+   downwards when opened — so with a catchment on screen they land on top of
+   it. Shifted left by the panel's width plus its gutter rather than given a
+   higher z-index: one of them winning and covering the other is the same bug
+   with a different victim. */
+.map-notes.beside-catchment {
+  right: 292px;
+  max-width: 38ch;
+}
+.map-notes summary {
+  cursor: pointer;
+  color: var(--warn);
+}
+.map-notes p {
+  margin: 8px 0 0;
+  color: var(--muted);
+}
+
+.map-attrib {
+  position: absolute;
+  right: 8px;
+  bottom: 6px;
+  z-index: 3;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(10, 14, 20, 0.7);
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.linkish {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-size: 11px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* The rectangle-selection surface. Sits over the canvas only while the mode
+   is on, so deck keeps every pointer event the rest of the time. */
+.map-drag-catcher {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  cursor: crosshair;
+  touch-action: none;
+}
+.map-drag-rect {
+  position: absolute;
+  pointer-events: none;
+}
+/* The same two colours as the SVG viewer's region tools, and for the same
+   reason: a user who has learned "blue takes only what is inside" in one view
+   must not have to learn it again in another. */
+.map-drag-rect.window {
+  border: 1.5px solid #38bdf8;
+  background: rgba(56, 189, 248, 0.14);
+}
+.map-drag-rect.crossing {
+  border: 1.5px dashed #34d399;
+  background: rgba(52, 211, 153, 0.14);
+}
+
+
+/* --- the catchment panel -------------------------------------------------
+   Anchored top-right, opposite the cell legend and clear of the notes
+   disclosure below it. It is a control while a catchment is being set up and
+   a result once there is one, so it stays open after running rather than
+   collapsing away from the numbers it produced. */
+.map-catchment {
+  position: absolute;
+  right: 12px;
+  top: 52px;
+  z-index: 5;
+  width: 268px;
+  max-height: 72%;
+  overflow-y: auto;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(14, 20, 27, 0.94);
+  backdrop-filter: blur(3px);
+  font-size: 12px;
+}
+.map-catchment-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.map-catchment-row > span {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.map-catchment-row select {
+  flex: 1;
+  min-width: 0;
+  max-width: 168px;
+}
+.map-catchment-actions {
+  display: flex;
+  gap: 6px;
+  margin: 8px 0 4px;
+}
+.map-catchment-err {
+  margin: 6px 0 0;
+  color: #f0a4a4;
+}
+.map-catchment-result {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.map-catchment-reach {
+  margin: 0 0 8px;
+  line-height: 1.45;
+}
+.map-catchment-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.map-catchment-table td {
+  padding: 3px 0;
+}
+.map-catchment-table td:last-child {
+  text-align: right;
+}
+.map-catchment-table i {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 7px;
+  border-radius: 2px;
+  vertical-align: baseline;
+}
+/* The caveats are small and permanently visible rather than behind a
+   disclosure: an approximate count that has to be clicked to reveal that it
+   is approximate is one that will be quoted without the caveat. */
+.map-catchment-note {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+/* --- upload and ingest progress ------------------------------------------
+   The tab is a RECORD being read, not a stream being watched: everything
+   below is painted from the run document that cad-api polls back, so nothing
+   here animates and nothing spins. A spinner is the one thing
+   docs/INGEST-RUN-CONTRACT.md set out to abolish, and a panel that added one
+   for texture would be putting it back.
+   -------------------------------------------------------------------------- */
+
+.upload-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.upload-intro {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.upload-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+/* The base input rule deliberately does not match `type="file"`, so the
+   control is styled here rather than by widening a selector every other field
+   on the page depends on. */
+.upload-picker input[type="file"] {
+  font: inherit;
+  font-size: 12px;
+  color: var(--muted);
+  width: 100%;
+}
+.upload-picker input[type="file"]::file-selector-button {
+  font: inherit;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 10px;
+  margin-right: 10px;
+  cursor: pointer;
+}
+.upload-picker input[type="file"]::file-selector-button:hover {
+  background: #24313f;
+  border-color: #3a4a5c;
+}
+.upload-file {
+  margin: 0;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+/* Said as soon as the file is chosen. A ceiling a user meets only by being
+   refused is one that reads as a bug the first time. */
+.upload-file-reason {
+  margin: 0;
+  color: var(--warn);
+  line-height: 1.45;
+}
+.upload-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ingest-run {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.ingest-headline {
+  margin: 0;
+  font-size: 13px;
+  color: var(--accent);
+}
+/* The five outcomes are coloured as what they are. `skipped` and `refused`
+   are NOT failures -- one is the idempotency path and the other is usually a
+   duplicate upload, which is the store working -- so neither gets the error
+   colour, and a reader glancing at the panel is not told something broke. */
+.ingest-headline.done {
+  color: var(--accent);
+}
+.ingest-headline.skipped,
+.ingest-headline.refused {
+  color: var(--muted);
+}
+.ingest-headline.failed {
+  color: var(--error);
+}
+.ingest-meta {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+/* A wait that has earned an explanation. It states what is known and never
+   claims the ingest is dead -- nothing in the browser can tell. */
+.ingest-note {
+  margin: 0;
+  font-size: 11px;
+  color: var(--warn);
+  line-height: 1.45;
+}
+/* A refusal reads as an explanation, not an alarm: the commonest one is a
+   file that is already in the store. */
+.ingest-refusal {
+  margin: 0;
+  padding: 8px 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--warn);
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+/* A predecessor is ambiguity reported, not a decision taken. Muted because
+   nothing is required of the reader. */
+.ingest-revision {
+  margin: 0;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.ingest-stages {
+  display: flex;
+  flex-direction: column;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+}
+.ingest-stage-row {
+  display: flex;
+  flex-direction: column;
+}
+.ingest-stage {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  color: var(--muted);
+  padding: 1px 0;
+}
+/* Same vocabulary as the agent's step trace above: a reader should not have
+   to learn two sets of marks for two lists of steps. */
+.ingest-stage.done .ingest-stage-name,
+.ingest-stage.running .ingest-stage-name {
+  color: var(--accent);
+}
+.ingest-stage.failed .ingest-stage-name,
+.ingest-stage.failed .ingest-stage-mark {
+  color: var(--error);
+}
+.ingest-stage.pending {
+  opacity: 0.5;
+}
+.ingest-stage-mark {
+  width: 10px;
+  flex-shrink: 0;
+}
+.ingest-stage-name {
+  white-space: nowrap;
+}
+.ingest-stage-detail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.75;
+}
+.ingest-stage-clock {
+  margin-left: auto;
+  flex-shrink: 0;
+  opacity: 0.75;
+}
+/* A warning does not fail a stage, so it sits under the tick without
+   contradicting it. */
+.ingest-stage-warning {
+  margin: 0 0 2px 16px;
+  color: var(--warn);
+  line-height: 1.4;
+}
+
+.ingest-outcome {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.ingest-outcome.failed {
+  color: var(--error);
+}
+.ingest-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* A layer row showing two different facts: how many objects the map is
+   currently holding, and how many the drawing has on that layer. The first
+   is dimmed because it is the smaller, more transient of the two. */
+.layer-drawn { color: var(--accent); }
+.layer-of { color: var(--muted); }
+
+/* The legend says what it is counting BY, and how much of the drawing that
+   accounts for. A heading alone cannot distinguish "this estate is four
+   parcels" from "four of this estate's 43,680 shapes have been classified". */
+.legend-fallback {
+  font-style: normal;
+  opacity: 0.6;
+  font-size: 0.85em;
+}
+.map-legend-coverage {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 11px;
+  line-height: 1.35;
+  opacity: 0.72;
+  max-width: 220px;
+}
+
+/* What the layer list is a list OF.
+   The LAYOUT picker names a sheet; since A2.1 the map ignores it and draws
+   the drawing's world-placed geometry, and this list follows the map. Saying
+   so is the whole fix -- the behaviour is deliberate, it was just silent. */
+.layer-scope {
+  padding: 6px 8px;
+  margin-bottom: 6px;
+  border-left: 2px solid rgba(120, 170, 255, 0.5);
+  background: rgba(120, 170, 255, 0.07);
+  font-size: 11px;
+  line-height: 1.4;
+  opacity: 0.85;
+}
+.layer-scope.provisional {
+  border-left-color: rgba(255, 190, 90, 0.6);
+  background: rgba(255, 190, 90, 0.07);
+}
+.layer-scope em {
+  font-style: normal;
+  opacity: 0.7;
+}
+
+/* The picker itself, when it governs the sheet view only. */
+.layout-picker.sheet-only > span {
+  opacity: 0.75;
+}
+.layout-picker-note {
+  font-size: 10px;
+  opacity: 0.6;
+  margin-left: 6px;
+  font-weight: normal;
+}
+
+/* The basemap's wrapper, which deck.gl owns and does not size.
+   Deck renders its children into an unclassed, absolutely-positioned div.
+   An absolutely-positioned box with no width or height shrinks to its
+   content, and MapLibre's content before it is told otherwise is its 300x150
+   default -- so the wrapper collapsed to 300x150 and MapLibre filled it
+   faithfully at width:100%. Measured on Atlas: deck's own canvas was a
+   correct 1327x703, the drawing painted, and the satellite behind it did not.
+   Nothing in React could reach this element, because it has no class and is
+   not ours to render; CSS can, and `:has` names exactly the one wrapper that
+   holds a map rather than every child deck happens to have. */
+.deck-events-root > div:has(> .maplibregl-map) {
+  inset: 0;
+  /* `!important` because deck writes width and height INLINE on this
+     wrapper -- measured, `width: 300px; height: 150px` -- and an inline
+     declaration outranks a stylesheet rule. Only `inset` applied without it,
+     which is why the box stayed 300x150 while the rule matched. An important
+     declaration is the one thing that outranks inline, and this is exactly
+     the case it exists for: an element another library owns, that we cannot
+     reach from React and must not fight in JavaScript on every frame. */
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* "There is more coming", without taking the map away.
+   A pan does not change the drawing, so what is painted stays painted. This
+   replaces the full-pane "Loading geometry..." that made the map blink on and
+   off as the owner panned -- blanking a correct view to fetch more of it is
+   the same family as reporting absence while a request is in flight. */
+.map-fetching {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: rgba(11, 15, 20, 0.82);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 11px;
+  pointer-events: none;
+  z-index: 6;
+}
+.map-fetching-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: map-fetching-pulse 1s ease-in-out infinite;
+}
+@keyframes map-fetching-pulse {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .map-fetching-dot { animation: none; opacity: 0.7; }
+}
