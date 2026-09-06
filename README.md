@@ -1,4 +1,4 @@
-# ADK × AutoCAD — DWG/DXF Viewer with AI Agent
+# ADK x AutoCAD - DWG/DXF Viewer with AI Agent
 
 > Web-based AutoCAD DWG/DXF viewer that renders drawings on a satellite basemap using Deck.GL (2D/3D), overlays H3 hexagonal grids for spatial analysis, and embeds a Google ADK-powered AI agent that reads and answers questions about the drawing in real time.
 
